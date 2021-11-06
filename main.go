@@ -5,6 +5,7 @@ import (
 	"github.com/antchfx/htmlquery"
 	"github.com/bwmarrin/discordgo"
 	log "github.com/sirupsen/logrus"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/signal"
@@ -77,7 +78,13 @@ func FetchUpdateAndPost(dg *discordgo.Session, channel, URL string) {
 	}
 	defer resp.Body.Close()
 
-	doc, err := htmlquery.Parse(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Errorf("Failed to read body for %s, %v", URL, err)
+		return
+	}
+
+	doc, err := htmlquery.Parse(strings.NewReader(string(body)))
 	if err != nil {
 		log.Errorf("Failed to parse Document for %s, %v", URL, err)
 		return
@@ -90,7 +97,7 @@ func FetchUpdateAndPost(dg *discordgo.Session, channel, URL string) {
 	name := strings.ReplaceAll(node.FirstChild.Data, "\n", "")
 
 
-	msg := fmt.Sprintf("Wishlist %s costs %s at %v", name, price, time.Now().Format(time.RFC1123))
+	msg := fmt.Sprintf("Wishlist %s (%s) costs %s at %v", name, URL, price, time.Now().Format(time.RFC1123))
 	_, err = dg.ChannelMessageSend(channel, msg)
 	if err != nil {
 		log.Errorf("Failed to send message to channel %s, %v", channel, err)
